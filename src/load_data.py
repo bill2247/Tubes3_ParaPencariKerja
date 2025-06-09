@@ -8,7 +8,7 @@ import random
 SEED = 42
 DB_NAME = "cv_application"
 DB_USER = "root"
-DB_PASS = "sqlmantap" # Ganti dengan password MySQL Anda
+DB_PASS = "lagrange" # Ganti dengan password MySQL Anda
 
 # --- Inisialisasi ---
 random.seed(SEED)
@@ -105,35 +105,51 @@ def main():
         return
 
     fields = os.listdir(data_dir)
-    
+
     id_len = 400
     primer_key = generate_fake_data(id_len)
 
     print("Memulai proses memuat data ke MySQL...")
-    for field in fields:
-        field_path = os.path.join(data_dir, field)
-        if not os.path.isdir(field_path):
-            continue
+    if os.path.isdir(os.path.join(data_dir, fields[0])):  # Jika data di simpan per field
+        for field in fields:
+            field_path = os.path.join(data_dir, field)
+            if not os.path.isdir(field_path):
+                continue
 
-        fnames = os.listdir(field_path)
-        fnames.sort()
+            fnames = os.listdir(field_path)
+            fnames.sort()
 
-        print(f"  Memproses kategori: {field}...")
-        for j in range(min(20, len(fnames))):
+            print(f"  Memproses kategori: {field}...")
+            for j in range(min(20, len(fnames))):
+                random_applicant_id = random.randint(0, id_len - 1)
+                fname = fnames[j]
+
+                full_cv_path = os.path.join(field_path, fname)
+                role = extract_pdf_role(full_cv_path)
+                
+                db_cv_path = f"{field}/{fname}"
+                application_role = f"{role}"
+                application_data = (application_role, db_cv_path)
+
+                setup_database_and_load(DB_NAME, DB_USER, DB_PASS, primer_key[random_applicant_id], application_data)
+
+        print("\nProses memuat data selesai.")
+
+    else:
+        files = fields
+        for file in files:
             random_applicant_id = random.randint(0, id_len - 1)
-            fname = fnames[j]
 
-            full_cv_path = os.path.join(field_path, fname)
+            full_cv_path = os.path.join(data_dir, file)
             role = extract_pdf_role(full_cv_path)
-            
-            db_cv_path = f"{field}/{fname}"
-            application_role = f"{role}, {field}"
+
+            db_cv_path = f"{file}"
+            application_role = f"{role}"
             application_data = (application_role, db_cv_path)
 
             setup_database_and_load(DB_NAME, DB_USER, DB_PASS, primer_key[random_applicant_id], application_data)
 
-    print("\nProses memuat data selesai.")
-
+        print("\nProses memuat data selesai.")
 
 if __name__ == "__main__":
     main()
