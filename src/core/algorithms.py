@@ -48,37 +48,69 @@ def kmp_search(text, pattern):
                 i += 1
     return count
 
+
 def boyer_moore_search(text, pattern):
     """
     Mencari semua kemunculan pattern dalam text menggunakan algoritma Boyer-Moore.
-    Mengembalikan jumlah kemunculan.
+    Logika pencarian disesuaikan dari contoh Java, dimodifikasi untuk menghitung semua
+    kemunculan dan diperbaiki untuk menangani karakter non-ASCII (Unicode).
     """
     def bad_char_heuristic(string, size):
-        bad_char = [-1] * 256
+        # PERBAIKAN: Menggunakan dictionary untuk menangani semua karakter (Unicode).
+        bad_char = {}
         for i in range(size):
-            bad_char[ord(string[i])] = i
+            # Kunci adalah karakter itu sendiri, bukan nilai ord().
+            bad_char[string[i]] = i
         return bad_char
 
+    def find_first_match_in_segment(text_segment, pat, bad_char_table):
+        """Menemukan kecocokan pertama di dalam segmen teks yang diberikan."""
+        m = len(pat)
+        n = len(text_segment)
+        if m > n:
+            return -1
+
+        i = m - 1
+        j = m - 1
+
+        while i < n:
+            if pat[j] == text_segment[i]:
+                if j == 0:
+                    return i
+                else:
+                    i -= 1
+                    j -= 1
+            else:
+                # PERBAIKAN: Menggunakan .get() untuk lookup yang aman pada dictionary.
+                # Jika karakter tidak ada di tabel, defaultnya adalah -1.
+                lo = bad_char_table.get(text_segment[i], -1)
+                i = i + m - min(j, 1 + lo)
+                j = m - 1
+        
+        return -1
+
+    # Bagian utama: loop untuk mencari dan menghitung semua kecocokan.
     m = len(pattern)
     n = len(text)
     if m == 0 or n == 0 or m > n:
         return 0
-    
+
     bad_char = bad_char_heuristic(pattern, m)
-    
-    s = 0
     count = 0
-    while s <= n - m:
-        j = m - 1
-        while j >= 0 and pattern[j] == text[s + j]:
-            j -= 1
+    current_pos = 0
+
+    while current_pos <= n - m:
+        match_pos = find_first_match_in_segment(text[current_pos:], pattern, bad_char)
         
-        if j < 0:
+        if match_pos != -1:
             count += 1
-            s += (m - bad_char[ord(text[s + m])] if s + m < n else 1)
+            current_pos += match_pos + 1
         else:
-            s += max(1, j - bad_char[ord(text[s + j])])
+            break
+            
     return count
+
+
 
 def aho_corasick_search(text, patterns):
     """Placeholder untuk algoritma Aho-Corasick (Bonus)."""
@@ -125,12 +157,111 @@ def find_fuzzy_matches(text, pattern, threshold=1):
     return count
 
 def extract_details_with_regex(full_cv_text):
-    """Mengekstrak detail dari teks CV menggunakan Regex (placeholder)."""
-    # Implementasi Regex yang sebenarnya akan sangat kompleks dan perlu banyak pengujian.
-    # Ini adalah placeholder yang mengembalikan data dummy untuk demonstrasi.
-    details = {
-        "skills": ["Python (from Regex)", "SQL (from Regex)", "Tableau (from Regex)"],
-        "job_history": [{"title": "Data Analyst (from Regex)", "dates": "2020 - 2022", "desc": "Menganalisis set data besar untuk wawasan bisnis."}],
-        "education": [{"major": "Statistics (from Regex)", "institution": "University of Life", "dates": "2016 - 2020"}]
-    }
+    """
+    Mengekstrak detail dari teks CV menggunakan Regex Heuristik yang dilatih
+    berdasarkan sampel CV yang diberikan.
+    """
+    text = re.sub(r' +', ' ', full_cv_text).strip()
+    
+    details = {"skills": [], "job_history": [], "education": []}
+    
+    # Kumpulan judul bagian yang mungkin, diperluas dari sampel
+    section_keywords = [
+        'skills', 'keahlian', 'core qualifications', 'affiliations',
+        'work history', 'experience', 'riwayat pekerjaan',
+        'education', 'pendidikan', 'riwayat pendidikan'
+    ]
+    
+    # Membuat satu pola Regex besar untuk menemukan batas antar bagian
+    # Ini adalah kunci untuk memisahkan konten dengan benar
+    section_boundary_pattern = r'\n\s*(?:' + '|'.join(section_keywords) + ')'
+
+    # --- 1. Ekstraksi Skills ---
+    try:
+        # Pola: Cari "skills" (atau variasinya), lalu ambil semua teks (.*?)
+        # sampai menemukan batas bagian berikutnya (?=...) atau akhir teks ($)
+        skills_pattern = r"(?i)(?:skills|core qualifications|keahlian|affiliations)\s*:?\s*(.*?)(?=" + section_boundary_pattern + "|$)"
+        match = re.search(skills_pattern, text, re.DOTALL | re.IGNORECASE)
+        if match:
+            skills_block = match.group(1).strip()
+            # Membersihkan dan memisahkan skills
+            # Mencoba memisahkan dengan koma atau baris baru
+            potential_skills = re.split(r',|\n', skills_block)
+            cleaned_skills = []
+            for skill in potential_skills:
+                # Menghapus karakter non-alfanumerik di awal/akhir dan kata-kata umum
+                s = re.sub(r'^\W+|\W+$', '', skill.strip()).strip()
+                if s and len(s) > 1 and s.lower() not in ['and', 'etc']:
+                    cleaned_skills.append(s)
+            details['skills'] = list(dict.fromkeys(cleaned_skills)) # Hapus duplikat
+    except Exception as e:
+        print(f"Regex error in skills: {e}")
+
+    # --- 2. Ekstraksi Education ---
+    try:
+        edu_pattern = r"(?i)(?:education|pendidikan)\s*:?\s*(.*?)(?=" + section_boundary_pattern + "|$)"
+        match = re.search(edu_pattern, text, re.DOTALL | re.IGNORECASE)
+        if match:
+            edu_block = match.group(1).strip()
+            # Memisahkan setiap entri pendidikan (diasumsikan dipisah oleh baris kosong)
+            entries = re.split(r'\n\s*\n|\bcompany name\b', edu_block, flags=re.IGNORECASE)
+            for entry in entries:
+                if not entry.strip(): continue
+                lines = [line.strip() for line in entry.split('\n') if line.strip()]
+                if not lines: continue
+                
+                major = lines[0]
+                institution = ""
+                dates = ""
+
+                # Mencoba menemukan institusi dan tanggal di baris berikutnya
+                if len(lines) > 1:
+                    institution = lines[1]
+                if len(lines) > 2:
+                    # Cek jika baris mengandung tahun
+                    if re.search(r'\b\d{4}\b', lines[2]):
+                        dates = lines[2]
+                    else:
+                        institution += " " + lines[2] # Gabungkan jika bukan tanggal
+                
+                details['education'].append({"major": major, "institution": institution, "dates": dates})
+    except Exception as e:
+        print(f"Regex error in education: {e}")
+
+    # --- 3. Ekstraksi Job History ---
+    try:
+        job_pattern = r"(?i)(?:work history|experience|riwayat pekerjaan)\s*:?\s*(.*?)(?=" + section_boundary_pattern + "|$)"
+        match = re.search(job_pattern, text, re.DOTALL | re.IGNORECASE)
+        if match:
+            job_block = match.group(1).strip()
+            # Memisahkan entri pekerjaan, seringkali dipisahkan oleh 'company name' atau baris kosong
+            entries = re.split(r'\n\s*\n|\bcompany name\b', job_block, flags=re.IGNORECASE)
+            for entry in entries:
+                if not entry.strip(): continue
+                lines = [line.strip() for line in entry.split('\n') if line.strip()]
+                if not lines: continue
+
+                title = lines[0]
+                dates = ""
+                desc = ""
+
+                # Mencoba mengekstrak tanggal dari judul atau baris kedua
+                date_match = re.search(r'(\d{2}/\d{4}\s*to\s*\d{2}/\d{4}|\w+\s*\d{4}\s*to\s*\w+\s*\d{4})', entry, re.IGNORECASE)
+                if date_match:
+                    dates = date_match.group(1)
+                    # Hapus tanggal dari judul jika ada
+                    title = title.replace(dates, '').strip(', ')
+                
+                # Sisa baris dianggap sebagai deskripsi
+                desc_lines = lines[1:]
+                desc = " ".join(desc_lines).replace(dates, '').strip()
+
+                details['job_history'].append({"title": title, "dates": dates, "desc": desc})
+    except Exception as e:
+        print(f"Regex error in job history: {e}")
+
+    # Jika tidak ada yang terekstrak, kembalikan placeholder
+    if not details["skills"] and not details["education"] and not details["job_history"]:
+        return {"skills": ["Not Found via Regex"], "job_history": [], "education": []}
+
     return details

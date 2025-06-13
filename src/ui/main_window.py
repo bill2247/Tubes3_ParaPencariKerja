@@ -6,12 +6,10 @@ import os
 from config import Theme
 from ui.widgets import WarningPopup, CVCard
 from ui.summary_window import CVSummaryWindow
-# --- Perubahan di sini ---
 from core import search_handler, algorithms
 
 class App(ctk.CTk):
-    # ... (kode __init__ dan lainnya tetap sama) ...
-    
+    """Kelas utama aplikasi CV Analyzer."""
     def __init__(self):
         super().__init__()
         self.title("CV Analyzer App by paraPencariKerja")
@@ -21,65 +19,11 @@ class App(ctk.CTk):
         self.center_window()
         self._create_widgets()
         
-        # Data dummy awal tidak ditampilkan lagi, UI kosong saat start
         self.execution_time_label.configure(text="Masukkan kriteria pencarian dan tekan Search.")
-        self.search_results_data = {} # Untuk menyimpan hasil pencarian terakhir
+        self.search_results_data = {}
 
-    # ... (semua fungsi UI lainnya tetap sama) ...
-
-    def _on_search_click(self):
-        if not self.keyword_entry.get().strip(): WarningPopup(self, "Kolom 'Keyword' tidak boleh kosong."); return
-        if self.algo_combobox.get() == "Select Algorithm": WarningPopup(self, "Silakan pilih 'Search Algorithm'."); return
-        top_n_str = self.top_matches_entry.get().strip()
-        try:
-            top_n = int(top_n_str)
-            if not (1 <= top_n <= 100): WarningPopup(self, "'Top Matches' harus angka antara 1 dan 100."); return
-        except ValueError: WarningPopup(self, "'Top Matches' harus berupa angka."); return
-        
-        keywords_str = self.keyword_entry.get().strip()
-        algorithm_choice = self.algo_combobox.get()
-        
-        # --- Perubahan di sini: Panggil backend, bukan data dummy ---
-        self.execution_time_label.configure(text="Mencari... Harap tunggu...")
-        self.update_idletasks() # Memaksa UI untuk update teks "Mencari..."
-
-        self.search_results_data = search_handler.perform_search(keywords_str, algorithm_choice, top_n)
-        
-        # UI di-update dengan hasil dari backend
-        self._update_ui_with_results(self.search_results_data)
-
-    def _open_summary_window(self, applicant_id):
-        # Cari data lengkap untuk applicant_id yang dipilih dari hasil pencarian terakhir
-        selected_data = next((item for item in self.search_results_data.get("results", []) if item["id"] == applicant_id), None)
-        
-        if not selected_data:
-            WarningPopup(self, "Data untuk kandidat ini tidak ditemukan."); return
-
-        # --- Perubahan di sini: Ekstraksi Regex dipanggil ---
-        # Untuk demonstrasi, kita hanya akan menggabungkan data
-        # Di implementasi nyata, Anda akan membaca file CV dan menjalankan Regex
-        # cv_text = read_file(selected_data['cv_path'])
-        # regex_details = algorithms.extract_details_with_regex(cv_text)
-        # selected_data.update(regex_details) # Menggabungkan detail dari regex
-        
-        print(f"Membuka summary untuk ID: {applicant_id}")
-        CVSummaryWindow(self, selected_data)
-
-    def _update_ui_with_results(self, data):
-        times = data.get("times", {})
-        self.execution_time_label.configure(text=f"Exact match: ... in {times.get('exact', 0)}ms\nFuzzy match: ... in {times.get('fuzzy', 0)}ms")
-        
-        for widget in self.scrollable_results_frame.winfo_children(): widget.destroy()
-        
-        if not data.get("results"):
-            ctk.CTkLabel(self.scrollable_results_frame, text="Tidak ada hasil yang ditemukan.", font=(Theme.FONT_FAMILY, 15)).pack(pady=20)
-            return
-
-        for i, cv_data in enumerate(data.get("results", [])):
-            card = CVCard(self.scrollable_results_frame, cv_data,
-                          summary_command=lambda applicant_id=cv_data.get("id"): self._open_summary_window(applicant_id),
-                          view_cv_command=lambda p=cv_data.get("cv_path"): self._open_cv_pdf(p))
-            card.grid(row=i // 2, column=i % 2, padx=10, pady=10, sticky="nsew")
+        # Membuat satu instance jendela summary yang akan digunakan kembali
+        self.summary_window = CVSummaryWindow(self)
 
     def _load_fonts(self):
         try:
@@ -137,12 +81,73 @@ class App(ctk.CTk):
 
         ctk.CTkButton(parent, text="Search", font=(Theme.FONT_FAMILY, 15, "bold"), fg_color=Theme.CAMBRIDGE_BLUE, text_color=Theme.PARCHMENT, hover_color=Theme.TEAL, height=40, corner_radius=8, command=self._on_search_click).pack(fill="x", ipady=5, pady=(20, 0))
 
+    def _on_search_click(self):
+        if not self.keyword_entry.get().strip(): WarningPopup(self, "Kolom 'Keyword' tidak boleh kosong."); return
+        if self.algo_combobox.get() == "Select Algorithm": WarningPopup(self, "Silakan pilih 'Search Algorithm'."); return
+        top_n_str = self.top_matches_entry.get().strip()
+        try:
+            top_n = int(top_n_str)
+            if not (1 <= top_n <= 100): WarningPopup(self, "'Top Matches' harus angka antara 1 dan 100."); return
+        except ValueError: WarningPopup(self, "'Top Matches' harus berupa angka."); return
+        
+        keywords_str = self.keyword_entry.get().strip()
+        algorithm_choice = self.algo_combobox.get()
+        
+        self.execution_time_label.configure(text="Mencari... Harap tunggu...")
+        self.update_idletasks()
+
+        self.search_results_data = search_handler.perform_search(keywords_str, algorithm_choice, top_n)
+        self._update_ui_with_results(self.search_results_data)
+
+    def _update_ui_with_results(self, data):
+        for widget in self.scrollable_results_frame.winfo_children(): widget.destroy()
+
+        times = data.get("times", {})
+        scanned_count = data.get("scanned_cv_count", 0)
+
+        exact_text = f"Exact match: Scanned {scanned_count} CVs in {times.get('exact', 0)}ms"
+        fuzzy_time = times.get('fuzzy', 0)
+        
+        full_text = f"{exact_text}\nFuzzy match: Scanned {scanned_count} CVs in {fuzzy_time}ms" if fuzzy_time > 0 else exact_text
+        self.execution_time_label.configure(text=full_text)
+        
+        if not data.get("results"):
+            ctk.CTkLabel(self.scrollable_results_frame, text="Tidak ada hasil yang ditemukan.", font=(Theme.FONT_FAMILY, 15)).pack(pady=20)
+            return
+
+        # --- PERBAIKAN DI SINI ---
+        # Mengembalikan logika untuk menggunakan .grid()
+        for i, cv_data in enumerate(data.get("results")):
+            card = CVCard(self.scrollable_results_frame, cv_data,
+                          summary_command=lambda d=cv_data: self._open_summary_window(d),
+                          view_cv_command=lambda p=cv_data.get("cv_path"): self._open_cv_pdf(p))
+            
+            # Menghitung baris dan kolom untuk tata letak 2 kolom
+            row = i // 2
+            col = i % 2
+            card.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
+
+    def _open_summary_window(self, cv_data):
+        full_cv_text = search_handler.read_cv_text(cv_data['cv_path'])
+        
+        if not full_cv_text:
+            WarningPopup(self, "Tidak dapat membaca konten dari file CV.")
+            return
+
+        print("Mengekstrak detail dengan Regex...")
+        regex_details = algorithms.extract_details_with_regex(full_cv_text)
+        print(full_cv_text)
+        cv_data.update(regex_details)
+        print(cv_data)
+        
+        self.summary_window.show(cv_data)
+
     def _open_cv_pdf(self, cv_path):
         if not cv_path:
             WarningPopup(self, "Path CV tidak ditemukan untuk kandidat ini."); return
         try:
             base_dir = os.path.dirname(os.path.abspath(__file__))
-            root_dir = os.path.dirname(os.path.dirname(base_dir))
+            root_dir = os.path.dirname(base_dir)
             full_path = os.path.join(root_dir, 'data', cv_path)
             webbrowser.open(f'file://{os.path.realpath(full_path)}')
         except Exception as e:

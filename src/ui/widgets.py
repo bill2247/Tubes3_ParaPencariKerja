@@ -27,6 +27,52 @@ class WarningPopup(ctk.CTkToplevel):
         self.lift()
         self.grab_set()
 
+class FlowLayoutFrame(ctk.CTkFrame):
+    """
+    Sebuah frame kustom yang menata widget anak agar 'mengalir' (wrap),
+    dengan dukungan untuk padding.
+    """
+    def __init__(self, *args, child_padx=0, child_pady=0, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.child_padx = child_padx
+        self.child_pady = child_pady
+        self.bind("<Configure>", self._on_configure)
+
+    def _on_configure(self, event=None):
+        """Dipanggil setiap kali ukuran frame berubah untuk menata ulang widget."""
+        self.update_idletasks()
+        
+        max_width = self.winfo_width()
+        if max_width <= 1: return # Jangan lakukan apa-apa jika frame belum digambar
+
+        current_x = 0
+        current_y = 0
+        row_height = 0
+
+        children = self.winfo_children()
+        for child in children:
+            child.update_idletasks()
+            width = child.winfo_reqwidth()
+            height = child.winfo_reqheight()
+            
+            # Jika widget tidak muat di baris saat ini, pindah ke baris baru
+            if current_x + width > max_width and current_x > 0:
+                current_y += row_height + self.child_pady
+                current_x = 0
+                row_height = 0
+            
+            # Tempatkan widget menggunakan .place()
+            child.place(x=current_x, y=current_y)
+            
+            # Update posisi untuk widget berikutnya
+            current_x += width + self.child_padx
+            if height > row_height:
+                row_height = height
+        
+        required_height = current_y + row_height
+        self.configure(height=required_height)
+
+
 class CVCard(ctk.CTkFrame):
     """Widget kartu untuk menampilkan ringkasan hasil pencarian satu CV."""
     def __init__(self, parent, data, summary_command, view_cv_command):
@@ -54,4 +100,3 @@ class CVCard(ctk.CTkFrame):
         
         view_cv_button = ctk.CTkButton(footer, text="View CV", fg_color=Theme.ASH_GRAY, text_color=Theme.RICH_BLACK, hover_color=Theme.PARCHMENT, font=(Theme.FONT_FAMILY, 13, "bold"), width=80, command=view_cv_command)
         view_cv_button.grid(row=0, column=1, sticky="e")
-

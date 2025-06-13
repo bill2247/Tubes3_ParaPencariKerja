@@ -35,8 +35,9 @@ def perform_search(keywords_str, algorithm_choice, top_n):
 
     # 1. Ambil data pelamar dari DB
     all_applicants = get_all_applicants_with_cv()
+    num_scanned_cvs = len(all_applicants) # Menghitung jumlah total CV
     if not all_applicants:
-        return {"times": {}, "results": []}
+        return {"times": {}, "results": [], "scanned_cv_count": 0}
 
     # Pilih fungsi pencarian berdasarkan pilihan UI
     search_function = {
@@ -67,20 +68,20 @@ def perform_search(keywords_str, algorithm_choice, top_n):
                     unmatched_keywords.remove(kw)
 
     end_time_exact = time.time()
+    cv_cocok_saat_ini = sum(1 for res in search_results.values() if res['matched_keywords'])
 
     # 3. Siklus Fuzzy Match
     start_time_fuzzy = time.time()
-    if unmatched_keywords:
-        print(f"Melakukan Fuzzy Match untuk: {unmatched_keywords}")
+    fuzzy_match_performed = False
+    if cv_cocok_saat_ini < top_n and unmatched_keywords:
+        fuzzy_match_performed = True
         for applicant_id in search_results:
             result = search_results[applicant_id]
             cv_text = read_cv_text(result['applicant_data']['cv_path'])
-            if not cv_text:
-                continue
+            if not cv_text: continue
             
             for kw in list(unmatched_keywords):
-                # Threshold=1 untuk mentolerir 1 kesalahan ketik
-                count = algorithms.find_fuzzy_matches(cv_text, kw, threshold=1)
+                count = algorithms.find_fuzzy_matches(cv_text, kw, threshold=2)
                 if count > 0:
                     fuzzy_key = f"{kw} (fuzzy)"
                     result['matched_keywords'][fuzzy_key] = count
@@ -88,33 +89,27 @@ def perform_search(keywords_str, algorithm_choice, top_n):
     
     # 4. Kalkulasi Skor & Ranking
     for result in search_results.values():
-        # Skor sederhana: jumlah keyword unik yang cocok, ditambah total kemunculan
         score = len(result['matched_keywords'])
         total_occurrences = sum(result['matched_keywords'].values())
-        result['score'] = score * 10 + total_occurrences # Memberi bobot lebih pada variasi keyword
+        result['score'] = score * 10 + total_occurrences
 
-    # Urutkan berdasarkan skor (tertinggi dulu), lalu nama
     sorted_results = sorted(search_results.values(), key=lambda x: (x['score'], x['applicant_data']['name']), reverse=True)
-    
-    # Ambil top_n hasil
     top_results = sorted_results[:top_n]
     
     # 5. Format hasil akhir untuk UI
     final_output = {
         "times": {
             "exact": int((end_time_exact - start_time_exact) * 1000),
-            "fuzzy": int((end_time_fuzzy - start_time_fuzzy) * 1000) if unmatched_keywords else 0
+            "fuzzy": int((end_time_fuzzy - start_time_fuzzy) * 1000) if fuzzy_match_performed else 0
         },
-        "results": []
+        "results": [],
+        "scanned_cv_count": num_scanned_cvs # Menambahkan jumlah CV yang dipindai
     }
 
     for result in top_results:
-        # Hanya tampilkan hasil yang memiliki skor > 0
         if result['score'] > 0:
             applicant_data = result['applicant_data']
             formatted_keywords = [f"{kw}: {count} occurence(s)" for kw, count in result['matched_keywords'].items()]
-            
-            # Data yang dikirim ke UI
             final_output["results"].append({
                 "id": applicant_data['id'],
                 "name": applicant_data['name'],
@@ -124,10 +119,7 @@ def perform_search(keywords_str, algorithm_choice, top_n):
                 "birthdate": str(applicant_data.get('date_of_birth', 'N/A')),
                 "address": applicant_data.get('address', 'N/A'),
                 "phone": applicant_data.get('phone_number', 'N/A'),
-                # Detail ini akan di-override oleh Regex saat summary dibuka
-                "skills": [],
-                "job_history": [],
-                "education": []
+                "skills": [], "job_history": [], "education": []
             })
             
     return final_output
