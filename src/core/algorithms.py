@@ -163,10 +163,11 @@ def extract_details_with_regex(full_cv_text):
     """
     text = re.sub(r' +', ' ', full_cv_text).strip()
     
-    details = {"skills": [], "job_history": [], "education": []}
+    details = {"summary": [], "skills": [], "job_history": [], "education": []}
     
     # Kumpulan judul bagian yang mungkin, diperluas dari sampel
     section_keywords = [
+        'summary', 'overview', 'profile', 'objective', 'ringkasan',
         'skills', 'keahlian', 'core qualifications', 'affiliations',
         'work history', 'experience', 'riwayat pekerjaan',
         'education', 'pendidikan', 'riwayat pendidikan'
@@ -176,6 +177,18 @@ def extract_details_with_regex(full_cv_text):
     # Ini adalah kunci untuk memisahkan konten dengan benar
     section_boundary_pattern = r'\n\s*(?:' + '|'.join(section_keywords) + ')'
 
+    # --- 1. Ekstraksi Summary ---
+    try:
+        # Pola: Cari "summary" (atau variasinya), lalu ambil semua teks (.*?)
+        # sampai menemukan batas bagian berikutnya (?=...) atau akhir teks ($)
+        summary_pattern = r"(?i)(?:summary|overview|profile|objective)\s*:?\s*(.*?)(?=" + section_boundary_pattern + "|$)"
+        match = re.search(summary_pattern, text, re.DOTALL | re.IGNORECASE)
+        if match:
+            summary_text = re.sub(r'\s+', ' ', match.group(1).strip()) # ambil grup pertama yang berisi teks ringkasannya jika match
+            details['summary'] = summary_text
+    except Exception as e:
+        print(f"Regex error in summary: {e}")
+        
     # --- 1. Ekstraksi Skills ---
     try:
         # Pola: Cari "skills" (atau variasinya), lalu ambil semua teks (.*?)
