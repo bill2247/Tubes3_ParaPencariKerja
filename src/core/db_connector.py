@@ -1,17 +1,21 @@
 import mysql.connector as sql
-from core.encryption_handler import decrypt # <-- Import fungsi dekripsi
+from core.encryption_handler import decrypt
+from core.config_manager import get_db_config
 
-DB_CONFIG = {
-    "host": "localhost",
-    "user": "root",
-    "password": input("Masukkan password MySQL Anda: ") or "sqlmantap",  # Ganti dengan password MySQL Anda
-    "database": "cv_application"
-}
+# --- PERBAIKAN DI SINI ---
+# DB_CONFIG sekarang dimuat secara dinamis saat fungsi dipanggil.
+# Ini memastikan konfigurasi terbaru selalu digunakan.
 
 def get_all_applicants_with_cv():
     """
     Mengambil semua data pelamar, lalu mendekripsinya sebelum dikembalikan.
     """
+    DB_CONFIG = get_db_config()
+    if not DB_CONFIG:
+        print("Error: File konfigurasi 'config.ini' tidak ditemukan atau kosong.")
+        print("Harap jalankan 'src/load_data.py' terlebih dahulu untuk membuat file konfigurasi.")
+        return []
+
     applicants = []
     try:
         connect = sql.connect(**DB_CONFIG)
@@ -29,7 +33,6 @@ def get_all_applicants_with_cv():
         raw_applicants = cursor.fetchall()
 
         for row in raw_applicants:
-            # PERUBAHAN: Dekripsi setiap kolom yang relevan
             decrypted_row = {
                 'id': row['id'],
                 'first_name': decrypt(row['first_name']),
@@ -37,10 +40,9 @@ def get_all_applicants_with_cv():
                 'date_of_birth': decrypt(row['date_of_birth']),
                 'address': decrypt(row['address']),
                 'phone_number': decrypt(row['phone_number']),
-                'cv_path': row['cv_path'] # cv_path tidak dienkripsi
+                'cv_path': row['cv_path']
             }
             
-            # Menggabungkan nama depan dan belakang
             decrypted_row['name'] = f"{decrypted_row['first_name']} {decrypted_row['last_name']}".strip()
             applicants.append(decrypted_row)
 
