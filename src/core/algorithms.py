@@ -1,4 +1,5 @@
 import re
+from collections import deque
 
 # --- Exact Match Algorithms ---
 
@@ -110,13 +111,105 @@ def boyer_moore_search(text, pattern):
             
     return count
 
+class trie_node:
+    def __init__(self):
+        self.children = {} 
+        self.output = []
+        self.failure = None
+                
+class aho_corasick:
+    def __init__(self, text, kws):
+        self.kws = [kw.lower() for kw in kws]
+        self.text = text
 
+        self.build_trie()
+        self.build_failure()
+
+    # automaton: trie
+    def build_trie(self):  
+        """Fungsi untuk membuat trie (pohon dengan node karakter)."""
+        self.root = trie_node()
+        # Untuk setiap kata dalam kws, mulai node dari root.
+        for kw in self.kws:
+            current_node = self.root
+            # Untuk setiap karakter dalam kata, 
+            # jika karakter tidak ada di node level saat ini, buat node baru
+            # ubah current_node menjadi node yang baru
+            for w in kw:
+                if w not in current_node.children: 
+                    current_node.children[w] = trie_node()
+                current_node = current_node.children[w]
+            current_node.output.append(kw)  # Menambahkan pola ke atribut output pada setiap karakter di akhir pola sebagai flag output
+        
+        return self
+
+    # automaton: failure links
+    def build_failure(self): 
+        """Fungsi untuk membuat failure links dengan basis BFS."""
+        queue = deque()
+
+        self.root.failure = self.root
+        # Menambahkan semua node di level 1 pada queue
+        for child in self.root.children.values():
+            child.failure = self.root
+            queue.append(child)
+
+        while queue:
+            current_node = queue.popleft()  # ambil node saat ini berdasarkan antrian FIFO
+
+            for x, child_node in current_node.children.items():
+                current_fail_node = current_node.failure  # ambil atribut fail link
+                while current_fail_node != self.root and x not in current_fail_node.children:
+                    # Ketika fail link bukan root node dan karakter 'x' tidak ada di node children fail link, 
+                    # ganti node saat ini dengan node fail link-nya.
+                    current_fail_node = current_fail_node.failure
+
+                # Ganti fail link pada child_node menjadi children dari node fail link atau root.
+                if x in current_fail_node.children:
+                    child_node.failure = current_fail_node.children[x]
+                else:
+                    child_node.failure = self.root
+
+                child_node.output += child_node.failure.output 
+                
+                queue.append(child_node)
+
+        return self
+
+    def search(self):
+        """Fungsi untuk pencarian pattern berbasis trie dalam teks."""
+        current_node = self.root
+        found = []
+
+        for i, x in enumerate(self.text):
+            while current_node != self.root and x not in current_node.children:
+                current_node = current_node.failure
+            
+            if x in current_node.children:
+                current_node = current_node.children[x]
+            for kw in current_node.output:
+                found.append((i - len(kw) + 1, kw))
+
+        # Loop untuk menghitung kemunculan pola.
+        if len(found) > 0:
+            found_count = {}
+            for kw in self.kws:
+                counts = 0
+                for i in range(len(found)):
+                    if found[i][1] == kw:
+                        counts += 1
+                found_count[kw] = counts
+        else:
+            found_count = {key: 0 for key in self.kws}
+        
+        return found_count
 
 def aho_corasick_search(text, patterns):
     """Placeholder untuk algoritma Aho-Corasick (Bonus)."""
     # Implementasi Aho-Corasick akan ada di sini
-    print("Aho-Corasick belum diimplementasikan.")
-    return 0
+    trie = aho_corasick(text, patterns)
+    res = trie.search()
+    return res
 
 
 # --- Fuzzy Match & Regex Algorithms ---

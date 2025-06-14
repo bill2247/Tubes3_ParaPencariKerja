@@ -4,7 +4,7 @@ from core.encryption_handler import decrypt # <-- Import fungsi dekripsi
 DB_CONFIG = {
     "host": "localhost",
     "user": "root",
-    "password": "sqlmantap",  # Ganti dengan password MySQL Anda
+    "password": input("Masukkan password MySQL Anda: ") or "sqlmantap",  # Ganti dengan password MySQL Anda
     "database": "cv_application"
 }
 

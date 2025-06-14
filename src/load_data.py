@@ -9,7 +9,7 @@ from core.encryption_handler import encrypt
 SEED = 42
 DB_NAME = "cv_application"
 DB_USER = "root"
-DB_PASS = "sqlmantap" # Ganti dengan password MySQL Anda
+DB_PASS = input("Masukkan password MySQL Anda: ") or "sqlmantap"  # Ganti dengan password MySQL Anda
 
 def generate_fake_data(length):
     faker = Faker()
