@@ -9,7 +9,6 @@ from ui.summary_window import CVSummaryWindow
 from core import search_handler, algorithms
 
 class App(ctk.CTk):
-    """Kelas utama aplikasi CV Analyzer."""
     def __init__(self):
         super().__init__()
         self.title("CV Analyzer App by paraPencariKerja")
@@ -18,11 +17,8 @@ class App(ctk.CTk):
         self._load_fonts()
         self.center_window()
         self._create_widgets()
-        
         self.execution_time_label.configure(text="Masukkan kriteria pencarian dan tekan Search.")
         self.search_results_data = {}
-
-        # Membuat satu instance jendela summary yang akan digunakan kembali
         self.summary_window = CVSummaryWindow(self)
 
     def _load_fonts(self):
@@ -64,21 +60,17 @@ class App(ctk.CTk):
         input_frame = ctk.CTkFrame(parent, fg_color="transparent")
         input_frame.pack(fill="x")
         input_frame.grid_columnconfigure(1, weight=1)
-
         ctk.CTkLabel(input_frame, text="Keyword:", font=(Theme.FONT_FAMILY, 15), text_color=Theme.RICH_BLACK).grid(row=0, column=0, sticky="w", padx=(0, 10))
         self.keyword_entry = ctk.CTkEntry(input_frame, font=(Theme.FONT_FAMILY, 15), fg_color=Theme.ASH_GRAY, text_color=Theme.TEAL, placeholder_text="React, Express, HTML", border_width=0, height=35, corner_radius=8)
         self.keyword_entry.grid(row=0, column=1, sticky="ew")
-
         ctk.CTkLabel(input_frame, text="Search Algorithm:", font=(Theme.FONT_FAMILY, 15), text_color=Theme.RICH_BLACK).grid(row=1, column=0, sticky="w", padx=(0, 10), pady=(10, 0))
         self.algo_combobox = ctk.CTkComboBox(input_frame, values=["KMP", "BM", "AC"], font=(Theme.FONT_FAMILY, 15), fg_color=Theme.ASH_GRAY, text_color=Theme.TEAL, border_width=0, height=35, corner_radius=8, state="readonly", button_color=Theme.TEAL, button_hover_color=Theme.CAMBRIDGE_BLUE)
         self.algo_combobox.set("Select Algorithm")
         self.algo_combobox.grid(row=1, column=1, sticky="ew", pady=(10, 0))
-
         ctk.CTkLabel(input_frame, text="Top Matches:", font=(Theme.FONT_FAMILY, 15), text_color=Theme.RICH_BLACK).grid(row=2, column=0, sticky="w", padx=(0, 10), pady=(10, 0))
         self.top_matches_entry = ctk.CTkEntry(input_frame, font=(Theme.FONT_FAMILY, 15), fg_color=Theme.ASH_GRAY, text_color=Theme.TEAL, placeholder_text="e.g., 10", border_width=0, height=35, corner_radius=8)
         self.top_matches_entry.insert(0, "3")
         self.top_matches_entry.grid(row=2, column=1, sticky="ew", pady=(10, 0))
-
         ctk.CTkButton(parent, text="Search", font=(Theme.FONT_FAMILY, 15, "bold"), fg_color=Theme.CAMBRIDGE_BLUE, text_color=Theme.PARCHMENT, hover_color=Theme.TEAL, height=40, corner_radius=8, command=self._on_search_click).pack(fill="x", ipady=5, pady=(20, 0))
 
     def _on_search_click(self):
@@ -92,22 +84,17 @@ class App(ctk.CTk):
         
         keywords_str = self.keyword_entry.get().strip()
         algorithm_choice = self.algo_combobox.get()
-        
         self.execution_time_label.configure(text="Mencari... Harap tunggu...")
         self.update_idletasks()
-
         self.search_results_data = search_handler.perform_search(keywords_str, algorithm_choice, top_n)
         self._update_ui_with_results(self.search_results_data)
 
     def _update_ui_with_results(self, data):
         for widget in self.scrollable_results_frame.winfo_children(): widget.destroy()
-
         times = data.get("times", {})
         scanned_count = data.get("scanned_cv_count", 0)
-
         exact_text = f"Exact match: Scanned {scanned_count} CVs in {times.get('exact', 0)}ms"
         fuzzy_time = times.get('fuzzy', 0)
-        
         full_text = f"{exact_text}\nFuzzy match: Scanned {scanned_count} CVs in {fuzzy_time}ms" if fuzzy_time > 0 else exact_text
         self.execution_time_label.configure(text=full_text)
         
@@ -115,40 +102,28 @@ class App(ctk.CTk):
             ctk.CTkLabel(self.scrollable_results_frame, text="Tidak ada hasil yang ditemukan.", font=(Theme.FONT_FAMILY, 15)).pack(pady=20)
             return
 
-        # --- PERBAIKAN DI SINI ---
-        # Mengembalikan logika untuk menggunakan .grid()
         for i, cv_data in enumerate(data.get("results")):
             card = CVCard(self.scrollable_results_frame, cv_data,
                           summary_command=lambda d=cv_data: self._open_summary_window(d),
                           view_cv_command=lambda p=cv_data.get("cv_path"): self._open_cv_pdf(p))
-            
-            # Menghitung baris dan kolom untuk tata letak 2 kolom
-            row = i // 2
-            col = i % 2
-            card.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
+            card.grid(row=i // 2, column=i % 2, padx=10, pady=10, sticky="nsew")
 
     def _open_summary_window(self, cv_data):
         full_cv_text = search_handler.read_cv_text(cv_data['cv_path'])
-        
         if not full_cv_text:
             WarningPopup(self, "Tidak dapat membaca konten dari file CV.")
             return
-
-        print("Mengekstrak detail dengan Regex...")
         regex_details = algorithms.extract_details_with_regex(full_cv_text)
-        print(full_cv_text)
         cv_data.update(regex_details)
-        print(cv_data)
-        
         self.summary_window.show(cv_data)
 
     def _open_cv_pdf(self, cv_path):
         if not cv_path:
             WarningPopup(self, "Path CV tidak ditemukan untuk kandidat ini."); return
         try:
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            root_dir = os.path.dirname(base_dir)
-            full_path = os.path.join(root_dir, 'data', cv_path)
-            webbrowser.open(f'file://{os.path.realpath(full_path)}')
+            # --- PERBAIKAN DI SINI ---
+            # Langsung gunakan path absolut dari argumen, tidak perlu membangun path lagi
+            print(f"Mencoba membuka CV di path: {cv_path}")
+            webbrowser.open(f'file://{os.path.realpath(cv_path)}')
         except Exception as e:
             WarningPopup(self, f"Gagal membuka file CV.\nError: {e}")
