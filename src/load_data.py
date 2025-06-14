@@ -154,6 +154,9 @@ def manual_seed():
     cursor.execute(f"DROP DATABASE IF EXISTS {DB_NAME};")
     cursor.execute(f"CREATE DATABASE {DB_NAME};")
 
+    cursor.close()
+    connect.close()
+
     print("Memulai proses memuat data ke MySQL...")
     for field in fields:
         field_path = os.path.join(data_dir, field)
