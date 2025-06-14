@@ -59,13 +59,23 @@ def perform_search(keywords_str, algorithm_choice, top_n):
         applicant_id = applicant['id']
         search_results[applicant_id] = {'applicant_data': applicant, 'score': 0, 'matched_keywords': {}}
         
-        for kw in keywords:
-            count = search_function(cv_text, kw)
-            if count > 0:
-                search_results[applicant_id]['matched_keywords'][kw] = count
-                # Jika keyword ditemukan, hapus dari set unmatched
-                if kw in unmatched_keywords:
-                    unmatched_keywords.remove(kw)
+        if algorithm_choice == "AC":
+            counts = search_function(cv_text, keywords)  # dict of count (int)
+            for kw, count in counts.items():
+                if count > 0:
+                    search_results[applicant_id]['matched_keywords'][kw] = count
+                    # Jika keyword ditemukan, hapus dari set unmatched
+                    if kw in unmatched_keywords:
+                        unmatched_keywords.remove(kw)
+                        
+        else:
+            for kw in keywords:
+                count = search_function(cv_text, kw)
+                if count > 0:
+                    search_results[applicant_id]['matched_keywords'][kw] = count
+                    # Jika keyword ditemukan, hapus dari set unmatched
+                    if kw in unmatched_keywords:
+                        unmatched_keywords.remove(kw)
 
     end_time_exact = time.time()
     cv_cocok_saat_ini = sum(1 for res in search_results.values() if res['matched_keywords'])

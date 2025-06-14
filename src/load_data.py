@@ -8,7 +8,7 @@ import random
 SEED = 42
 DB_NAME = "cv_application"
 DB_USER = "root"
-DB_PASS = "sqlmantap" # Ganti dengan password MySQL Anda
+DB_PASS = "lagrange" # Ganti dengan password MySQL Anda
 
 # --- Inisialisasi ---
 random.seed(SEED)

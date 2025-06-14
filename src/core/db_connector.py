@@ -5,7 +5,7 @@ from config import Theme  # Meskipun tidak digunakan, ini untuk konsistensi
 DB_CONFIG = {
     "host": "localhost",
     "user": "root",
-    "password": "sqlmantap",  # Ganti dengan password MySQL Anda
+    "password": "lagrange",  # Ganti dengan password MySQL Anda
     "database": "cv_application"
 }
 
