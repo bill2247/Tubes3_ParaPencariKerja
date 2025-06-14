@@ -47,8 +47,7 @@ def setup_database_and_load(db_name, user, password, applicant_data, application
         connect = sql.connect(host="localhost", user=user, password=password)
         cursor = connect.cursor()
         
-        cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")
-        cursor.execute(f"USE {db_name}")
+        cursor.execute(f"USE {db_name};")
         
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS ApplicantProfile (
@@ -93,8 +92,48 @@ def setup_database_and_load(db_name, user, password, applicant_data, application
             cursor.close()
             connect.close()
 
-def main():
-    """Fungsi utama untuk menjalankan proses seeding data."""
+def setup_data_and_load_from_file(file_path, db_name, user, password):
+    connect = sql.connect(
+        host="localhost",
+        user=user,
+        password=password,
+    )
+
+    cursor = connect.cursor()
+
+    cursor.execute(f"DROP DATABASE IF EXISTS {db_name};")
+    cursor.execute(f"CREATE DATABASE {db_name};")
+    cursor.execute(f"USE {db_name};")
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        sql_script = f.read()
+
+    code_lines = []
+    for line in sql_script.splitlines():
+        line = line.strip()
+        if not line.startswith("--"):
+            code_lines.append(line)
+
+    clean_code = "\n".join(code_lines)
+
+    cmds = clean_code.split(";")
+
+    for cmd in cmds:
+        cmd = cmd.strip()
+        if cmd:
+            try:
+                cursor.execute(cmd)
+            except sql.Error as err:
+                print(f"Error: {err}")
+                print(f"SQL eror di baris kode: {cmd}")
+
+    connect.commit()
+
+    cursor.close()
+    connect.close()
+
+def manual_seed():
+    """Fungsi untuk menjalankan proses seeding data (manual)."""
     # Menentukan path secara dinamis berdasarkan lokasi file skrip ini
     src_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(src_dir)
@@ -108,6 +147,12 @@ def main():
     
     id_len = 400
     primer_key = generate_fake_data(id_len)
+
+    connect = sql.connect(host="localhost", user=DB_USER, password=DB_PASS)
+    cursor = connect.cursor()
+    
+    cursor.execute(f"DROP DATABASE IF EXISTS {DB_NAME};")
+    cursor.execute(f"CREATE DATABASE {DB_NAME};")
 
     print("Memulai proses memuat data ke MySQL...")
     for field in fields:
@@ -126,14 +171,14 @@ def main():
             full_cv_path = os.path.join(field_path, fname)
             role = extract_pdf_role(full_cv_path)
             
-            db_cv_path = f"{field}/{fname}"
-            application_role = f"{role}, {field}"
+            db_cv_path = f"data/{field}/{fname}"
+            application_role = f"{role}"
             application_data = (application_role, db_cv_path)
 
             setup_database_and_load(DB_NAME, DB_USER, DB_PASS, primer_key[random_applicant_id], application_data)
 
     print("\nProses memuat data selesai.")
 
-
-if __name__ == "__main__":
-    main()
+def demo_seed():
+    """Fungsi untuk menjalankan proses seeding data (demo)."""
+    setup_data_and_load_from_file("tubes3_seeding.sql", DB_NAME, DB_USER, DB_PASS)

@@ -10,8 +10,8 @@ def read_cv_text(cv_path):
         # Menentukan path absolut dari root proyek
         base_dir = os.path.dirname(os.path.abspath(__file__)) # /path/to/project/src/core
         root_dir = os.path.dirname(os.path.dirname(base_dir)) # /path/to/project
-        full_path = os.path.join(root_dir, 'data', cv_path)
-        
+        full_path = os.path.join(root_dir, cv_path)
+
         if not os.path.exists(full_path):
             print(f"Peringatan: File CV tidak ditemukan di '{full_path}'")
             return ""

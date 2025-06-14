@@ -147,8 +147,8 @@ class App(ctk.CTk):
             WarningPopup(self, "Path CV tidak ditemukan untuk kandidat ini."); return
         try:
             base_dir = os.path.dirname(os.path.abspath(__file__))
-            root_dir = os.path.dirname(base_dir)
-            full_path = os.path.join(root_dir, 'data', cv_path)
+            root_dir = os.path.dirname(os.path.dirname(base_dir))
+            full_path = os.path.join(root_dir, cv_path)
             webbrowser.open(f'file://{os.path.realpath(full_path)}')
         except Exception as e:
             WarningPopup(self, f"Gagal membuka file CV.\nError: {e}")
