@@ -43,27 +43,38 @@ def perform_search(keywords_str, algorithm_choice, top_n):
     if not all_applicants:
         return {"times": {}, "results": [], "scanned_cv_count": 0}
 
-    search_function = {
-        "KMP": algorithms.kmp_search,
-        "BM": algorithms.boyer_moore_search,
-        "AC": algorithms.aho_corasick_search
-    }.get(algorithm_choice, algorithms.kmp_search)
-
     start_time_exact = time.time()
     search_results = {}
     unmatched_keywords = set(keywords)
 
     for applicant in all_applicants:
         cv_text = read_cv_text(applicant.get('cv_path'))
-        if not cv_text:
-            continue
+        if not cv_text: continue
+            
         applicant_id = applicant['id']
         search_results[applicant_id] = {'applicant_data': applicant, 'score': 0, 'matched_keywords': {}}
-        for kw in keywords:
-            count = search_function(cv_text, kw)
-            if count > 0:
-                search_results[applicant_id]['matched_keywords'][kw] = count
-                if kw in unmatched_keywords: unmatched_keywords.remove(kw)
+
+        # Logika dipisahkan berdasarkan algoritma
+        if algorithm_choice == "AC":
+            # Panggil Aho-Corasick sekali dengan SEMUA keywords
+            all_counts = algorithms.aho_corasick_search(cv_text, keywords)
+            for kw, count in all_counts.items():
+                if count > 0:
+                    search_results[applicant_id]['matched_keywords'][kw] = count
+                    if kw in unmatched_keywords: unmatched_keywords.remove(kw)
+        else:
+            # Logika lama untuk KMP dan BM (pencarian satu per satu)
+            search_function = {
+                "KMP": algorithms.kmp_search,
+                "BM": algorithms.boyer_moore_search
+            }.get(algorithm_choice, algorithms.kmp_search)
+            
+            for kw in keywords:
+                count = search_function(cv_text, kw)
+                if count > 0:
+                    search_results[applicant_id]['matched_keywords'][kw] = count
+                    if kw in unmatched_keywords: unmatched_keywords.remove(kw)
+    
     end_time_exact = time.time()
 
     cv_cocok_saat_ini = sum(1 for res in search_results.values() if res['matched_keywords'])
