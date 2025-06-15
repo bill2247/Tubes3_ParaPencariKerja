@@ -19,7 +19,7 @@ def read_cv_text(cv_path):
         else:
             base_dir = os.path.dirname(os.path.abspath(__file__))
             project_root = os.path.dirname(os.path.dirname(base_dir))
-            full_path = os.path.join(project_root, 'data', clean_path)
+            full_path = os.path.join(project_root, clean_path)
 
         if not os.path.exists(full_path):
             print(f"Peringatan: Gagal menemukan file CV. Path yang dicoba: '{full_path}'")
@@ -130,7 +130,7 @@ def perform_search(keywords_str, algorithm_choice, top_n):
             else:
                 base_dir = os.path.dirname(os.path.abspath(__file__))
                 project_root = os.path.dirname(os.path.dirname(base_dir))
-                final_path = os.path.join(project_root, 'data', original_path)
+                final_path = os.path.join(project_root, original_path)
 
             final_output["results"].append({
                 "id": applicant_data['id'],
