@@ -79,7 +79,7 @@ def manual_seed():
             )""")
 
         # Persiapan data
-        data_dir = "../data"
+        data_dir = "data"
         if not os.path.isdir(data_dir):
             print(f"Error: Folder '{data_dir}' tidak ditemukan. Pastikan skrip dijalankan dari root direktori proyek.")
             return
@@ -142,7 +142,7 @@ def setup_data_and_load_from_file(file_path, db_name, user, password):
         cursor.execute(f"USE {db_name};")
 
         # Persiapan data
-        data_dir = "../data"
+        data_dir = "data"
         if not os.path.isdir(data_dir):
             print(f"Error: Folder '{data_dir}' tidak ditemukan. Pastikan skrip dijalankan dari root direktori proyek.")
             return
@@ -185,7 +185,7 @@ def demo_seed():
     DB_USER, DB_PASS, DB_NAME = get_credentials()
 
     # load data
-    setup_data_and_load_from_file("tubes3_seeding.sql", DB_NAME, DB_USER, DB_PASS)   
+    setup_data_and_load_from_file("src/tubes3_seeding.sql", DB_NAME, DB_USER, DB_PASS)   
 
     try:
         connect = sql.connect(
