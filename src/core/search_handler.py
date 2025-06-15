@@ -77,7 +77,6 @@ def perform_search(keywords_str, algorithm_choice, top_n):
     
     end_time_exact = time.time()
 
-    # Logika Fuzzy Match sekarang membedakan kata tunggal dan frasa
     cv_cocok_saat_ini = sum(1 for res in search_results.values() if res['matched_keywords'])
     start_time_fuzzy = time.time()
     fuzzy_match_performed = False
@@ -89,21 +88,25 @@ def perform_search(keywords_str, algorithm_choice, top_n):
             if not cv_text: continue
             
             for kw in list(unmatched_keywords):
-                count = 0
-                # Cek apakah kata kunci adalah frasa atau kata tunggal
-                if ' ' in kw:
-                    # Gunakan fungsi pencarian frasa
-                    count = algorithms.find_fuzzy_phrase_match(cv_text, kw, threshold=2)
-                else:
-                    # Gunakan fungsi pencarian kata tunggal
-                    count = algorithms.find_fuzzy_matches(cv_text, kw, threshold=2)
-
+                # Panggil fungsi fuzzy_search terpadu untuk semua kasus
+                count = algorithms.fuzzy_search(cv_text, kw, threshold=2)
                 if count > 0:
-                    result['matched_keywords'][f"{kw} (fuzzy)"] = count
+                    result['matched_keywords'][f"{kw} (fuzzy)"] = result.get(f"{kw} (fuzzy)", 0) + count
 
     end_time_fuzzy = time.time()
+
     for result in search_results.values():
-        result['score'] = len(result['matched_keywords']) * 10 + sum(result['matched_keywords'].values())
+        # Jika ada frasa dalam pencarian, skor hanya dihitung jika frasa itu cocok.
+        contains_phrase = any(' ' in kw for kw in result['matched_keywords'])
+        is_phrase_search = any(' ' in kw for kw in keywords)
+
+        # Jika ini adalah pencarian frasa, tapi CV ini tidak cocok dengan frasa apapun, beri skor 0
+        if is_phrase_search and not contains_phrase:
+            result['score'] = 0
+        else:
+            score = len(result['matched_keywords'])
+            total_occurrences = sum(result['matched_keywords'].values())
+            result['score'] = score * 10 + total_occurrences
 
     sorted_results = sorted(search_results.values(), key=lambda x: (x['score'], x['applicant_data']['name']), reverse=True)
     top_results = sorted_results[:top_n]
