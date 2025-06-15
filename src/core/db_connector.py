@@ -2,14 +2,7 @@ import mysql.connector as sql
 from core.encryption_handler import decrypt
 from core.config_manager import get_db_config
 
-# --- PERBAIKAN DI SINI ---
-# DB_CONFIG sekarang dimuat secara dinamis saat fungsi dipanggil.
-# Ini memastikan konfigurasi terbaru selalu digunakan.
-
 def get_all_applicants_with_cv():
-    """
-    Mengambil semua data pelamar, lalu mendekripsinya sebelum dikembalikan.
-    """
     DB_CONFIG = get_db_config()
     if not DB_CONFIG:
         print("Error: File konfigurasi 'config.ini' tidak ditemukan atau kosong.")

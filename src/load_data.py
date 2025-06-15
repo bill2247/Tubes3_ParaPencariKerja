@@ -11,7 +11,6 @@ from core.config_manager import get_db_config, save_db_config
 SEED = 42
 
 def get_credentials():
-    """Membaca konfigurasi DB atau memintanya dari pengguna jika tidak ada."""
     config = get_db_config()
     if config and config.get('password') is not None:
         print("Konfigurasi database dimuat dari config.ini.")
@@ -21,7 +20,6 @@ def get_credentials():
         user = input("Masukkan username MySQL Anda (default: root): ") or "root"
         password = getpass("Masukkan password MySQL Anda (tekan Enter jika tidak ada): ")
         db_name = "cv_application"
-        # Simpan konfigurasi untuk penggunaan selanjutnya
         save_db_config(user, password, db_name)
         return user, password, db_name
 
@@ -46,7 +44,6 @@ def extract_pdf_role(path):
     return "Unknown Role"
 
 def manual_seed():
-    """Fungsi utama untuk membersihkan dan mengisi ulang database (manual)."""
     Faker.seed(SEED)
     random.seed(SEED)
     
@@ -181,7 +178,6 @@ def setup_data_and_load_from_file(file_path, db_name, user, password):
             connect.close()
 
 def demo_seed():
-    """Fungsi untuk menjalankan proses seeding data (demo)."""
     DB_USER, DB_PASS, DB_NAME = get_credentials()
 
     # load data

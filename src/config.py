@@ -1,5 +1,4 @@
 class Theme:
-    """Menyimpan konstanta untuk tema aplikasi."""
     RICH_BLACK = "#031926"
     TEAL = "#468189"
     CAMBRIDGE_BLUE = "#77ACA2"

@@ -3,10 +3,6 @@ from config import Theme
 from ui.widgets import FlowLayoutFrame
 
 class CVSummaryWindow(ctk.CTkToplevel):
-    """
-    Jendela pop-up yang dapat digunakan kembali dengan layout yang sepenuhnya dinamis.
-    Memperbaiki ValueError dan AttributeError.
-    """
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
@@ -18,14 +14,12 @@ class CVSummaryWindow(ctk.CTkToplevel):
         self.withdraw()
 
     def _update_wraplength(self, event, label):
-        """Callback untuk mengatur wraplength label secara dinamis."""
         padding = 40
         wrap_width = event.width - padding
         if wrap_width > 0:
             label.configure(wraplength=wrap_width)
 
     def _create_permanent_structure(self):
-        """Membuat struktur widget permanen hanya sekali."""
         self.main_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.main_frame.pack(fill="both", expand=True, padx=20, pady=10)
         self.main_frame.grid_columnconfigure(0, weight=1)
@@ -40,7 +34,6 @@ class CVSummaryWindow(ctk.CTkToplevel):
         self.content_frame.grid_columnconfigure(0, weight=1)
 
     def _populate_content(self, data):
-        """Menghapus konten lama dan mengisi dengan data baru."""
         for widget in self.content_frame.winfo_children():
             widget.destroy()
 
@@ -64,7 +57,6 @@ class CVSummaryWindow(ctk.CTkToplevel):
         self._populate_section(self.content_frame, "Education", data.get("education", []), start_row=5)
 
     def populate_flow_layout(self, container, items):
-        """Menata item (skills) dalam layout yang mengalir (wrap)."""
         for item_text in items:
             # PERBAIKAN: padx dan pady dihapus dari konstruktor
             pill = ctk.CTkButton(container, text=item_text, fg_color=Theme.TEAL, text_color=Theme.PARCHMENT, font=(Theme.FONT_FAMILY, 13, "bold"), state="disabled", corner_radius=15)
@@ -73,7 +65,6 @@ class CVSummaryWindow(ctk.CTkToplevel):
             pill.pack()
 
     def _populate_section(self, parent, title_text, items, start_row):
-        """Membuat bagian untuk Job History atau Education."""
         ctk.CTkLabel(parent, text=f"{title_text}:", font=(Theme.FONT_FAMILY, 20, "bold"), text_color=Theme.RICH_BLACK).grid(row=start_row, column=0, sticky="w", pady=(20, 5), padx=5)
         
         section_frame = ctk.CTkFrame(parent, fg_color="transparent")
@@ -102,7 +93,6 @@ class CVSummaryWindow(ctk.CTkToplevel):
                 item_box.bind('<Configure>', lambda e, lbl=desc_label: self._update_wraplength(e, lbl), add='+')
 
     def show(self, data):
-        """Mengisi dan menampilkan jendela dengan data baru."""
         self.title(f"Summary: {data.get('name', 'N/A')}")
         self.geometry("600x700")
         self._populate_content(data)
@@ -114,6 +104,5 @@ class CVSummaryWindow(ctk.CTkToplevel):
         self.grab_set()
 
     def hide(self):
-        """Menyembunyikan jendela dan melepaskan grab."""
         self.grab_release()
         self.withdraw()

@@ -1,5 +1,4 @@
 def get_dummy_search_results():
-    """Menyediakan satu set data dummy untuk tujuan pengujian UI."""
     return {
         "times": {"exact": 700, "fuzzy": 600},
         "results": [

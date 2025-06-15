@@ -121,8 +121,6 @@ class App(ctk.CTk):
         if not cv_path:
             WarningPopup(self, "Path CV tidak ditemukan untuk kandidat ini."); return
         try:
-            # --- PERBAIKAN DI SINI ---
-            # Langsung gunakan path absolut dari argumen, tidak perlu membangun path lagi
             print(f"Mencoba membuka CV di path: {cv_path}")
             webbrowser.open(f'file://{os.path.realpath(cv_path)}')
         except Exception as e:
