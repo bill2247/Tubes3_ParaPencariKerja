@@ -77,6 +77,7 @@ def perform_search(keywords_str, algorithm_choice, top_n):
     
     end_time_exact = time.time()
 
+    # Logika Fuzzy Match membedakan kata tunggal dan frasa
     cv_cocok_saat_ini = sum(1 for res in search_results.values() if res['matched_keywords'])
     start_time_fuzzy = time.time()
     fuzzy_match_performed = False
@@ -86,6 +87,7 @@ def perform_search(keywords_str, algorithm_choice, top_n):
             result = search_results[applicant_id]
             cv_text = read_cv_text(result['applicant_data'].get('cv_path'))
             if not cv_text: continue
+            
             
             for kw in list(unmatched_keywords):
                 # Panggil fungsi fuzzy_search terpadu untuk semua kasus

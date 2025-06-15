@@ -181,10 +181,13 @@ def levenshtein_distance(s1, s2):
     """Menghitung Levenshtein distance antara dua string."""
     if len(s1) < len(s2): return levenshtein_distance(s2, s1)
     if len(s2) == 0: return len(s1)
+    if len(s1) < len(s2): return levenshtein_distance(s2, s1)
+    if len(s2) == 0: return len(s1)
     previous_row = range(len(s2) + 1)
     for i, c1 in enumerate(s1):
         current_row = [i + 1]
         for j, c2 in enumerate(s2):
+            insertions, deletions, substitutions = previous_row[j + 1] + 1, current_row[j] + 1, previous_row[j] + (c1 != c2)
             insertions, deletions, substitutions = previous_row[j + 1] + 1, current_row[j] + 1, previous_row[j] + (c1 != c2)
             current_row.append(min(insertions, deletions, substitutions))
         previous_row = current_row
@@ -196,6 +199,7 @@ def _find_fuzzy_single_word(text, pattern, threshold):
     count = 0
     words_in_text = set(re.findall(r'\b\w+\b', text))
     for word in words_in_text:
+        if abs(len(word) - len(pattern)) <= threshold and levenshtein_distance(word, pattern) <= threshold:
         if abs(len(word) - len(pattern)) <= threshold and levenshtein_distance(word, pattern) <= threshold:
             count += 1 
     return count
