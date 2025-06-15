@@ -1,4 +1,5 @@
 import re
+from collections import deque
 
 # --- Exact Match Algorithms ---
 
@@ -110,14 +111,69 @@ def boyer_moore_search(text, pattern):
             
     return count
 
+class trie_node:
+    def __init__(self):
+        self.children = {} 
+        self.output = []
+        self.failure = None
+                
 
+# --- Implementasi Aho-Corasick ---
+class TrieNode:
+    def __init__(self):
+        self.children = {} 
+        self.output = []
+        self.failure = None
 
 def aho_corasick_search(text, patterns):
-    """Placeholder untuk algoritma Aho-Corasick (Bonus)."""
-    # Implementasi Aho-Corasick akan ada di sini
-    print("Aho-Corasick belum diimplementasikan.")
-    return 0
+    """
+    Mencari semua kemunculan dari beberapa pola (patterns) dalam teks
+    menggunakan algoritma Aho-Corasick.
+    Mengembalikan sebuah dictionary {'pattern': count}.
+    """
+    # 1. Build Trie
+    root = TrieNode()
+    for kw in patterns:
+        node = root
+        for char in kw:
+            node = node.children.setdefault(char, TrieNode())
+        node.output.append(kw)
 
+    # 2. Build Failure Links
+    queue = deque()
+    for node in root.children.values():
+        node.failure = root
+        queue.append(node)
+    
+    while queue:
+        current_node = queue.popleft()
+        for char, child_node in current_node.children.items():
+            fail_node = current_node.failure
+            while char not in fail_node.children and fail_node is not root:
+                fail_node = fail_node.failure
+            
+            if char in fail_node.children:
+                child_node.failure = fail_node.children[char]
+            else:
+                child_node.failure = root
+            
+            child_node.output.extend(child_node.failure.output)
+            queue.append(child_node)
+
+    # 3. Search Text
+    found_counts = {kw: 0 for kw in patterns}
+    node = root
+    for char in text:
+        while char not in node.children and node is not root:
+            node = node.failure
+        
+        if char in node.children:
+            node = node.children[char]
+        
+        for kw in node.output:
+            found_counts[kw] += 1
+            
+    return found_counts
 
 # --- Fuzzy Match & Regex Algorithms ---
 

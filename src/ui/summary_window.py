@@ -49,9 +49,10 @@ class CVSummaryWindow(ctk.CTkToplevel):
         info_box.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(info_box, text=data.get("name", "N/A"), font=(Theme.FONT_FAMILY, 24, "bold"), text_color=Theme.PARCHMENT).pack(pady=(10,10))
         ctk.CTkLabel(info_box, text=f"Birthdate: {data.get('birthdate', 'N/A')}", font=(Theme.FONT_FAMILY, 15), text_color=Theme.PARCHMENT).pack(anchor="w", padx=20)
-        addr_label = ctk.CTkLabel(info_box, text=f"Address: {data.get('address', 'N/A')}", font=(Theme.FONT_FAMILY, 15), text_color=Theme.PARCHMENT, justify="left")
-        addr_label.pack(anchor="w", padx=20, fill="x")
-        info_box.bind('<Configure>', lambda e, lbl=addr_label: self._update_wraplength(e, lbl))
+        # addr_label = ctk.CTkLabel(info_box, text=f"Address: {data.get('address', 'N/A')}", font=(Theme.FONT_FAMILY, 15), text_color=Theme.PARCHMENT, justify="left")
+        # addr_label.pack(anchor="w", padx=20, fill="x")
+        # info_box.bind('<Configure>', lambda e, lbl=addr_label: self._update_wraplength(e, lbl))
+        ctk.CTkLabel(info_box, text=f"Address: {data.get('address', 'N/A')}", font=(Theme.FONT_FAMILY, 15), text_color=Theme.PARCHMENT, justify="left").pack(anchor="w", padx=20, pady=(0,10))
         ctk.CTkLabel(info_box, text=f"Phone: {data.get('phone', 'N/A')}", font=(Theme.FONT_FAMILY, 15), text_color=Theme.PARCHMENT).pack(anchor="w", padx=20, pady=(0,10))
         
         ctk.CTkLabel(self.content_frame, text="Skills:", font=(Theme.FONT_FAMILY, 20, "bold"), text_color=Theme.RICH_BLACK).grid(row=1, column=0, sticky="w", pady=(20, 5), padx=5)

@@ -1,49 +1,54 @@
 import mysql.connector as sql
-import os
-from config import Theme  # Meskipun tidak digunakan, ini untuk konsistensi
+from core.encryption_handler import decrypt
+from core.config_manager import get_db_config
 
-DB_CONFIG = {
-    "host": "localhost",
-    "user": "root",
-    "password": "sqlmantap",  # Ganti dengan password MySQL Anda
-    "database": "cv_application"
-}
+# --- PERBAIKAN DI SINI ---
+# DB_CONFIG sekarang dimuat secara dinamis saat fungsi dipanggil.
+# Ini memastikan konfigurasi terbaru selalu digunakan.
 
 def get_all_applicants_with_cv():
     """
-    Mengambil semua data pelamar yang digabungkan dari ApplicantProfile dan ApplicationDetail.
+    Mengambil semua data pelamar, lalu mendekripsinya sebelum dikembalikan.
     """
+    DB_CONFIG = get_db_config()
+    if not DB_CONFIG:
+        print("Error: File konfigurasi 'config.ini' tidak ditemukan atau kosong.")
+        print("Harap jalankan 'src/load_data.py' terlebih dahulu untuk membuat file konfigurasi.")
+        return []
+
     applicants = []
     try:
         connect = sql.connect(**DB_CONFIG)
-        cursor = connect.cursor(dictionary=True) # dictionary=True agar hasil seperti dict
+        cursor = connect.cursor(dictionary=True)
 
         query = """
             SELECT 
                 p.applicant_id as id,
-                p.first_name,
-                p.last_name,
-                p.date_of_birth,
-                p.address,
-                p.phone_number,
+                p.first_name, p.last_name, p.date_of_birth, p.address, p.phone_number,
                 d.cv_path
-            FROM 
-                ApplicantProfile p
-            JOIN 
-                ApplicationDetail d ON p.applicant_id = d.applicant_id
+            FROM ApplicantProfile p JOIN ApplicationDetail d ON p.applicant_id = d.applicant_id
         """
         cursor.execute(query)
         
-        for row in cursor.fetchall():
-            # Menggabungkan nama depan dan belakang
-            row['name'] = f"{row.get('first_name', '')} {row.get('last_name', '')}".strip()
-            applicants.append(row)
+        raw_applicants = cursor.fetchall()
+
+        for row in raw_applicants:
+            decrypted_row = {
+                'id': row['id'],
+                'first_name': decrypt(row['first_name']),
+                'last_name': decrypt(row['last_name']),
+                'date_of_birth': decrypt(row['date_of_birth']),
+                'address': decrypt(row['address']),
+                'phone_number': decrypt(row['phone_number']),
+                'cv_path': row['cv_path']
+            }
+            
+            decrypted_row['name'] = f"{decrypted_row['first_name']} {decrypted_row['last_name']}".strip()
+            applicants.append(decrypted_row)
 
     except sql.Error as err:
         print(f"Database Error: {err}")
-        # Mengembalikan data dummy jika koneksi DB gagal agar UI tidak error
-        from .data_manager import get_dummy_search_results
-        return get_dummy_search_results().get("results", [])
+        return []
 
     finally:
         if 'connect' in locals() and connect.is_connected():
