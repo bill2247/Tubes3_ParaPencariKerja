@@ -179,38 +179,46 @@ def aho_corasick_search(text, patterns):
 
 def levenshtein_distance(s1, s2):
     """Menghitung Levenshtein distance antara dua string."""
-    if len(s1) < len(s2):
-        return levenshtein_distance(s2, s1)
-    if len(s2) == 0:
-        return len(s1)
-    
+    if len(s1) < len(s2): return levenshtein_distance(s2, s1)
+    if len(s2) == 0: return len(s1)
     previous_row = range(len(s2) + 1)
     for i, c1 in enumerate(s1):
         current_row = [i + 1]
         for j, c2 in enumerate(s2):
-            insertions = previous_row[j + 1] + 1
-            deletions = current_row[j] + 1
-            substitutions = previous_row[j] + (c1 != c2)
+            insertions, deletions, substitutions = previous_row[j + 1] + 1, current_row[j] + 1, previous_row[j] + (c1 != c2)
             current_row.append(min(insertions, deletions, substitutions))
         previous_row = current_row
-        
     return previous_row[-1]
 
-def find_fuzzy_matches(text, pattern, threshold=1):
-    """
-    Mencari kata dalam teks yang mirip dengan pattern berdasarkan Levenshtein.
-    Threshold default adalah 1, untuk mentolerir satu typo.
-    """
+def find_fuzzy_matches(text, pattern, threshold=2):
+    """Mencari KATA TUNGGAL dalam teks yang mirip dengan pattern."""
     count = 0
-    # Memecah teks menjadi kata-kata unik untuk efisiensi
     words_in_text = set(re.findall(r'\b\w+\b', text))
     for word in words_in_text:
-        if levenshtein_distance(word, pattern) <= threshold:
-            # Ini hanya menghitung sekali per kata unik yang cocok.
-            # Untuk menghitung setiap kemunculan, Anda perlu iterasi teks asli.
-            # Namun, untuk tujuan pemeringkatan, ini seringkali cukup.
+        if abs(len(word) - len(pattern)) <= threshold and levenshtein_distance(word, pattern) <= threshold:
             count += 1 
     return count
+
+def find_fuzzy_phrase_match(text, phrase, threshold=2):
+    """
+    Mencari FRASA dengan memeriksa apakah semua kata dalam frasa tersebut
+    ada di dalam teks (dengan toleransi fuzzy).
+    """
+    phrase_words = set(phrase.split())
+    words_in_text = set(re.findall(r'\b\w+\b', text))
+    
+    found_words = 0
+    for p_word in phrase_words:
+        is_word_found = False
+        for t_word in words_in_text:
+            if abs(len(t_word) - len(p_word)) <= threshold and levenshtein_distance(t_word, p_word) <= threshold:
+                is_word_found = True
+                break  # Lanjut ke kata frasa berikutnya jika sudah ditemukan
+        if is_word_found:
+            found_words += 1
+            
+    # Jika semua kata dari frasa ditemukan, anggap sebagai 1 kecocokan frasa
+    return 1 if found_words == len(phrase_words) else 0
 
 def extract_details_with_regex(full_cv_text):
     """
