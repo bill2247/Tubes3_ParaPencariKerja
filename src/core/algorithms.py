@@ -200,7 +200,6 @@ def _find_fuzzy_single_word(text, pattern, threshold):
     words_in_text = set(re.findall(r'\b\w+\b', text))
     for word in words_in_text:
         if abs(len(word) - len(pattern)) <= threshold and levenshtein_distance(word, pattern) <= threshold:
-        if abs(len(word) - len(pattern)) <= threshold and levenshtein_distance(word, pattern) <= threshold:
             count += 1 
     return count
 
