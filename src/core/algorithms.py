@@ -241,113 +241,64 @@ def fuzzy_search(text, pattern, threshold=2):
     # Jika tidak, anggap sebagai kata tunggal.
     else:
         return _find_fuzzy_single_word(text, pattern, threshold)
-
+    
 def extract_details_with_regex(full_cv_text):
-    """
-    Mengekstrak detail dari teks CV menggunakan Regex Heuristik yang dilatih
-    berdasarkan sampel CV yang diberikan.
-    """
     text = re.sub(r' +', ' ', full_cv_text).strip()
-    
-    details = {"skills": [], "job_history": [], "education": []}
-    
-    # Kumpulan judul bagian yang mungkin, diperluas dari sampel
-    section_keywords = [
-        'skills', 'keahlian', 'core qualifications', 'affiliations',
-        'work history', 'experience', 'riwayat pekerjaan',
-        'education', 'pendidikan', 'riwayat pendidikan'
-    ]
-    
-    # Membuat satu pola Regex besar untuk menemukan batas antar bagian
-    # Ini adalah kunci untuk memisahkan konten dengan benar
-    section_boundary_pattern = r'\n\s*(?:' + '|'.join(section_keywords) + ')'
+    text = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)  # Tambahkan spasi antara camelCase jika ada
+    details = {"summary": "", "skills": [], "job_history": [], "education": []}
 
-    # --- 1. Ekstraksi Skills ---
-    try:
-        # Pola: Cari "skills" (atau variasinya), lalu ambil semua teks (.*?)
-        # sampai menemukan batas bagian berikutnya (?=...) atau akhir teks ($)
-        skills_pattern = r"(?i)(?:skills|core qualifications|keahlian|affiliations)\s*:?\s*(.*?)(?=" + section_boundary_pattern + "|$)"
-        match = re.search(skills_pattern, text, re.DOTALL | re.IGNORECASE)
-        if match:
-            skills_block = match.group(1).strip()
-            # Membersihkan dan memisahkan skills
-            # Mencoba memisahkan dengan koma atau baris baru
-            potential_skills = re.split(r',|\n', skills_block)
-            cleaned_skills = []
-            for skill in potential_skills:
-                # Menghapus karakter non-alfanumerik di awal/akhir dan kata-kata umum
-                s = re.sub(r'^\W+|\W+$', '', skill.strip()).strip()
-                if s and len(s) > 1 and s.lower() not in ['and', 'etc']:
-                    cleaned_skills.append(s)
-            details['skills'] = list(dict.fromkeys(cleaned_skills)) # Hapus duplikat
-    except Exception as e:
-        print(f"Regex error in skills: {e}")
+    # --- Ekstrak Summary ---
+    summary_match = re.search(r'summary\s*(.*?)(?=highlights|skills|experience|education|work history)', text, re.IGNORECASE)
+    if summary_match:
+        details["summary"] = summary_match.group(1).strip()
 
-    # --- 2. Ekstraksi Education ---
-    try:
-        edu_pattern = r"(?i)(?:education|pendidikan)\s*:?\s*(.*?)(?=" + section_boundary_pattern + "|$)"
-        match = re.search(edu_pattern, text, re.DOTALL | re.IGNORECASE)
-        if match:
-            edu_block = match.group(1).strip()
-            # Memisahkan setiap entri pendidikan (diasumsikan dipisah oleh baris kosong)
-            entries = re.split(r'\n\s*\n|\bcompany name\b', edu_block, flags=re.IGNORECASE)
-            for entry in entries:
-                if not entry.strip(): continue
-                lines = [line.strip() for line in entry.split('\n') if line.strip()]
-                if not lines: continue
-                
-                major = lines[0]
-                institution = ""
-                dates = ""
+    # --- Ekstrak Skills (ambil blok saja tanpa dipecah) ---
+    # skills_match = re.search(r'(skills|highlights)\s*(.*?)(?=experience|education|summary|work history)', text, re.IGNORECASE)
+    if not details["skills"]:
+        fallback_skills_match = re.search(r'(?:accomplishments|strengths|capabilities)\s*(.*?)(?=experience|education|summary|work history)', text, re.IGNORECASE)
+        if fallback_skills_match:
+            block = fallback_skills_match.group(1).strip()
+            details["skills"] = [block] if block else []
 
-                # Mencoba menemukan institusi dan tanggal di baris berikutnya
-                if len(lines) > 1:
-                    institution = lines[1]
-                if len(lines) > 2:
-                    # Cek jika baris mengandung tahun
-                    if re.search(r'\b\d{4}\b', lines[2]):
-                        dates = lines[2]
-                    else:
-                        institution += " " + lines[2] # Gabungkan jika bukan tanggal
-                
-                details['education'].append({"major": major, "institution": institution, "dates": dates})
-    except Exception as e:
-        print(f"Regex error in education: {e}")
+    # --- Ekstrak Job History ---
+    job_matches = re.findall(
+        r'(\d{2}/\d{4}\s*(?:to|-)?\s*\d{2}/\d{4}|\d{6}|\w+\s+\d{4}\s*(?:to|-)?\s*\w+\s+\d{4})\s*company name\s*city\s*,?\s*state\s*(.*?)\s*(?=\d{2}/\d{4}|company name|education|$)',
+        text,
+        re.IGNORECASE
+    )
+    for date_str, after_text in job_matches:
+        if re.match(r'\d{6}', date_str):
+            month = date_str[:2]
+            year = date_str[2:]
+            date_str = f"{month}/{year}"
+        title_match = re.search(r'([A-Za-z\s/&\-]{3,})', after_text.strip())
+        # title_match = re.search(r'(?:Company Name\s+.*?)([A-Z][a-zA-Z\s/&\-]+?)(?=\s*\d{2}/\d{4}|\s*\b\w+\s+\d{4})', entry, re.IGNORECASE)
+        # title_match = re.search(r'(chef|cook|line cook|food service cook|supervisor|prep chef|server)', after_text, re.IGNORECASE)
+        title = title_match.group(1).title() if title_match else "Unknown"
+        details["job_history"].append({
+            "title": title,
+            "company": "Company Name",
+            "dates": date_str
+        })
 
-    # --- 3. Ekstraksi Job History ---
-    try:
-        job_pattern = r"(?i)(?:work history|experience|riwayat pekerjaan)\s*:?\s*(.*?)(?=" + section_boundary_pattern + "|$)"
-        match = re.search(job_pattern, text, re.DOTALL | re.IGNORECASE)
-        if match:
-            job_block = match.group(1).strip()
-            # Memisahkan entri pekerjaan, seringkali dipisahkan oleh 'company name' atau baris kosong
-            entries = re.split(r'\n\s*\n|\bcompany name\b', job_block, flags=re.IGNORECASE)
-            for entry in entries:
-                if not entry.strip(): continue
-                lines = [line.strip() for line in entry.split('\n') if line.strip()]
-                if not lines: continue
+    # --- Ekstrak Education ---
+    edu_match = re.search(r'education\s*(.*)', text, re.IGNORECASE)
+    if edu_match:
+        block = edu_match.group(1).strip()
+        date_match = re.search(r'(\d{4})', block)
+        # Ekstrak major setelah kata "diploma:" atau "degree in"
+        # major_match = re.search(r'(?:diploma\s*:|degree\s*(?:in)?|courses\s*in|major\s*in)?\s*([a-zA-Z ,&\-]+)', block, re.IGNORECASE)
+        major_match = re.search(r'(?:diploma\s*:\s*|degree in\s*)([a-zA-Z ,&]+)', block, re.IGNORECASE)
+        # Ambil nama institusi sebelum diploma
+        institution_match = re.search(r'([A-Z][\w\s,&\-]+(?:university|institute|college|academy|school|polytechnic|center|centre|faculty|campus))', block, re.IGNORECASE)
+        # institution_match = re.search(r'(?:(?:at|from|in)?\s*)([A-Z][\w\s,&\-]+?),?\s*(?:\b(?:university|institute|college|academy|school|polytechnic|center|centre|faculty|campus)\b)?', block, re.IGNORECASE)
+        # institution_match = re.search(r'(.*?)\s+(?:high school|diploma|degree)', block, re.IGNORECASE)
 
-                title = lines[0]
-                dates = ""
-                desc = ""
-
-                # Mencoba mengekstrak tanggal dari judul atau baris kedua
-                date_match = re.search(r'(\d{2}/\d{4}\s*to\s*\d{2}/\d{4}|\w+\s*\d{4}\s*to\s*\w+\s*\d{4})', entry, re.IGNORECASE)
-                if date_match:
-                    dates = date_match.group(1)
-                    # Hapus tanggal dari judul jika ada
-                    title = title.replace(dates, '').strip(', ')
-                
-                # Sisa baris dianggap sebagai deskripsi
-                desc_lines = lines[1:]
-                desc = " ".join(desc_lines).replace(dates, '').strip()
-
-                details['job_history'].append({"title": title, "dates": dates, "desc": desc})
-    except Exception as e:
-        print(f"Regex error in job history: {e}")
-
-    # Jika tidak ada yang terekstrak, kembalikan placeholder
-    if not details["skills"] and not details["education"] and not details["job_history"]:
-        return {"skills": ["Not Found via Regex"], "job_history": [], "education": []}
+        if date_match:
+            details["education"].append({
+                "major": major_match.group(1).strip() if major_match else "",
+                "institution": institution_match.group(1).strip() if institution_match else "",
+                "dates": date_match.group(1)
+            })
 
     return details
