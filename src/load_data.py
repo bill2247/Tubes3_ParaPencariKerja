@@ -45,8 +45,8 @@ def extract_pdf_role(path):
     except Exception: pass
     return "Unknown Role"
 
-def main():
-    """Fungsi utama untuk membersihkan dan mengisi ulang database."""
+def manual_seed():
+    """Fungsi utama untuk membersihkan dan mengisi ulang database (manual)."""
     Faker.seed(SEED)
     random.seed(SEED)
     
@@ -79,7 +79,7 @@ def main():
             )""")
 
         # Persiapan data
-        data_dir = "data"
+        data_dir = "../data"
         if not os.path.isdir(data_dir):
             print(f"Error: Folder '{data_dir}' tidak ditemukan. Pastikan skrip dijalankan dari root direktori proyek.")
             return
@@ -110,7 +110,7 @@ def main():
 
                 role = extract_pdf_role(full_cv_path)
                 absolute_path = os.path.abspath(full_cv_path)
-                application_data = (applicant_id, f"{role}, {field}", absolute_path)
+                application_data = (applicant_id, f"{role}", absolute_path)
                 insert_role = "INSERT INTO ApplicationDetail (applicant_id, application_role, cv_path) VALUES (%s, %s, %s)"
                 cursor.execute(insert_role, application_data)
 
@@ -125,7 +125,106 @@ def main():
             cursor.close()
             connect.close()
 
+def setup_data_and_load_from_file(file_path, db_name, user, password):
+    try:
+        connect = sql.connect(
+            host="localhost",
+            user=user,
+            password=password,
+        )
 
-if __name__ == "__main__":
-    main()
+        cursor = connect.cursor()
 
+        print(f"Membersihkan database lama '{db_name}' (jika ada)...")
+        cursor.execute(f"DROP DATABASE IF EXISTS {db_name};")
+        print("Membuat database baru...")
+        cursor.execute(f"CREATE DATABASE {db_name};")
+        cursor.execute(f"USE {db_name};")
+
+        # Persiapan data
+        data_dir = "../data"
+        if not os.path.isdir(data_dir):
+            print(f"Error: Folder '{data_dir}' tidak ditemukan. Pastikan skrip dijalankan dari root direktori proyek.")
+            return
+
+        print("Memulai proses memuat data ke MySQL...")
+        with open(file_path, "r", encoding="utf-8") as f:
+            sql_script = f.read()
+
+        code_lines = []
+        for line in sql_script.splitlines():
+            line = line.strip()
+            if not line.startswith("--"):
+                code_lines.append(line)
+
+        clean_code = "\n".join(code_lines)
+
+        cmds = clean_code.split(";")
+
+        for cmd in cmds:
+            cmd = cmd.strip()
+            if cmd:
+                try:
+                    cursor.execute(cmd)
+                except sql.Error as err:
+                    print(f"Error: {err}")
+                    print(f"SQL eror di baris kode: {cmd}")
+
+        connect.commit()
+
+    except sql.Error as err:
+        print(f"Database Error: {err}")
+        if 'connect' in locals() and connect.is_connected(): connect.rollback()
+    finally:
+        if 'connect' in locals() and connect.is_connected():
+            cursor.close()
+            connect.close()
+
+def demo_seed():
+    """Fungsi untuk menjalankan proses seeding data (demo)."""
+    DB_USER, DB_PASS, DB_NAME = get_credentials()
+
+    # load data
+    setup_data_and_load_from_file("tubes3_seeding.sql", DB_NAME, DB_USER, DB_PASS)   
+
+    try:
+        connect = sql.connect(
+            host="localhost",
+            user=DB_USER,
+            password=DB_PASS,
+            database=DB_NAME
+        )
+
+        cursor = connect.cursor()
+
+        # enkripsi data
+        cursor.execute("SELECT applicant_id, first_name, last_name, date_of_birth, address, phone_number FROM ApplicantProfile")
+        rows = cursor.fetchall()
+
+        # Ubah tipe data jadi BLOB
+        columns = ["first_name", "last_name", "date_of_birth", "address", "phone_number"]
+        for col in columns:
+            cursor.execute(f"ALTER TABLE ApplicantProfile MODIFY {col} BLOB")
+
+        for row in rows:
+            app_id, fname, lname, birth, address, phone = row
+            
+            encrypted_data = (
+                        encrypt(fname), encrypt(lname),
+                        encrypt(birth), encrypt(address),
+                        encrypt(phone), app_id
+                    )
+
+            insert_applicant = "UPDATE ApplicantProfile SET first_name=%s, last_name=%s, date_of_birth=%s, address=%s, phone_number=%s WHERE applicant_id=%s"
+            cursor.execute(insert_applicant, encrypted_data)
+
+        connect.commit()
+        print("\nProses memuat data selesai dengan sukses.")
+
+    except sql.Error as err:
+        print(f"Database Error: {err}")
+        if 'connect' in locals() and connect.is_connected(): connect.rollback()
+    finally:
+        if 'connect' in locals() and connect.is_connected():
+            cursor.close()
+            connect.close()
