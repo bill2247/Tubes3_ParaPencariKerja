@@ -74,7 +74,8 @@ class CVCard(ctk.CTkFrame):
         header.grid(row=0, column=0, padx=15, pady=(15, 10), sticky="ew")
         header.grid_columnconfigure(1, weight=1)
         ctk.CTkLabel(header, text=data.get("name", "N/A"), font=(Theme.FONT_FAMILY, 16, "bold"), text_color=Theme.PARCHMENT, anchor="w").grid(row=0, column=0, sticky="w")
-        ctk.CTkLabel(header, text=f"{data.get('matches', 0)} Matches", font=(Theme.FONT_FAMILY, 16), text_color=Theme.PARCHMENT, anchor="e").grid(row=0, column=1, sticky="e")
+        # REVISI: menampilkan score setiap temuan
+        ctk.CTkLabel(header, text=f"Score: {data.get('score', 0)}", font=(Theme.FONT_FAMILY, 16), text_color=Theme.PARCHMENT, anchor="e").grid(row=0, column=1, sticky="e")
 
         body = ctk.CTkFrame(self, fg_color="transparent")
         body.grid(row=1, column=0, padx=15, pady=5, sticky="ew")

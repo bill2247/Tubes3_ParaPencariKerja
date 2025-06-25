@@ -34,7 +34,7 @@ def perform_search(keywords_str, algorithm_choice, top_n):
         return {"times": {}, "results": []}
 
     all_applicants = get_all_applicants_with_cv()
-    num_scanned_cvs = len(all_applicants)
+    num_scanned_cvs = len(all_applicants) # 600
     if not all_applicants:
         return {"times": {}, "results": [], "scanned_cv_count": 0}
 
@@ -46,7 +46,7 @@ def perform_search(keywords_str, algorithm_choice, top_n):
         cv_text = read_cv_text(applicant.get('cv_path'))
         if not cv_text: continue
             
-        applicant_id = applicant['id']
+        applicant_id = str(applicant['id']) + ";" + applicant["cv_path"]  # REVISI: applicant_id ditambah dengan cv_path karena 1 orang bisa punya lebih dari 1 CV
         search_results[applicant_id] = {'applicant_data': applicant, 'score': 0, 'matched_keywords': {}}
 
         if algorithm_choice == "AC":
@@ -91,20 +91,20 @@ def perform_search(keywords_str, algorithm_choice, top_n):
 
     for result in search_results.values():
         # Jika ada frasa dalam pencarian, skor hanya dihitung jika frasa itu cocok.
-        contains_phrase = any(' ' in kw for kw in result['matched_keywords'])
-        is_phrase_search = any(' ' in kw for kw in keywords)
+        # contains_phrase = any(' ' in kw for kw in result['matched_keywords'])
+        # is_phrase_search = any(' ' in kw for kw in keywords)
 
         # Jika ini adalah pencarian frasa, tapi CV ini tidak cocok dengan frasa apapun, beri skor 0
-        if is_phrase_search and not contains_phrase:
-            result['score'] = 0
-        else:
+        if len(result['matched_keywords']) > 0: # REVISI: hitung score yang hanya ada matched keywords nya saja
             score = len(result['matched_keywords'])
             total_occurrences = sum(result['matched_keywords'].values())
             result['score'] = score * 10 + total_occurrences
+        else:
+            result['score'] = 0
 
     sorted_results = sorted(search_results.values(), key=lambda x: (x['score'], x['applicant_data']['name']), reverse=True)
     top_results = sorted_results[:top_n]
-    
+
     final_output = {
         "times": {
             "exact": int((end_time_exact - start_time_exact) * 1000),
@@ -130,6 +130,7 @@ def perform_search(keywords_str, algorithm_choice, top_n):
                 "id": applicant_data['id'],
                 "name": applicant_data['name'],
                 "matches": len(result['matched_keywords']),
+                "score": result['score'],  # REVISI: menambahkan score untuk ditampilkan di UI
                 "matched_keywords": [f"{kw}: {count} occurence(s)" for kw, count in result['matched_keywords'].items()],
                 "cv_path": final_path, 
                 "birthdate": str(applicant_data.get('date_of_birth', 'N/A')),

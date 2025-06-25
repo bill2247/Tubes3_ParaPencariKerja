@@ -161,30 +161,69 @@ def aho_corasick_search(text, patterns):
 # --- Fuzzy Match & Regex Algorithms ---
 
 def levenshtein_distance(s1, s2):
-    if len(s1) < len(s2):
-        return levenshtein_distance(s2, s1)
-    if len(s2) == 0:
-        return len(s1)
-    
+    """Menghitung Levenshtein distance antara dua string."""
+    if len(s1) < len(s2): return levenshtein_distance(s2, s1)
+    if len(s2) == 0: return len(s1)
+    if len(s1) < len(s2): return levenshtein_distance(s2, s1)
+    if len(s2) == 0: return len(s1)
     previous_row = range(len(s2) + 1)
     for i, c1 in enumerate(s1):
         current_row = [i + 1]
         for j, c2 in enumerate(s2):
             insertions, deletions, substitutions = previous_row[j + 1] + 1, current_row[j] + 1, previous_row[j] + (c1 != c2)
             insertions, deletions, substitutions = previous_row[j + 1] + 1, current_row[j] + 1, previous_row[j] + (c1 != c2)
-            insertions, deletions, substitutions = previous_row[j + 1] + 1, current_row[j] + 1, previous_row[j] + (c1 != c2)
-            insertions, deletions, substitutions = previous_row[j + 1] + 1, current_row[j] + 1, previous_row[j] + (c1 != c2)
             current_row.append(min(insertions, deletions, substitutions))
         previous_row = current_row
     return previous_row[-1]
 
-def find_fuzzy_matches(text, pattern, threshold=1):
+
+def _find_fuzzy_single_word(text, pattern, threshold):
+    """Mencari KATA TUNGGAL dalam teks yang mirip dengan pattern."""
     count = 0
     words_in_text = set(re.findall(r'\b\w+\b', text))
     for word in words_in_text:
-        if levenshtein_distance(word, pattern) <= threshold:
+        if abs(len(word) - len(pattern)) <= threshold and levenshtein_distance(word, pattern) <= threshold:
             count += 1 
     return count
+
+def _find_fuzzy_phrase(text, phrase, threshold):
+    """Mencari FRASA menggunakan metode 'sliding window of words'."""
+    pattern_words = phrase.lower().split()
+    text_words = text.lower().split()
+    
+    m, n = len(pattern_words), len(text_words)
+    count = 0
+    if m == 0 or m > n: return 0
+
+    for i in range(n - m + 1):
+        window = text_words[i : i + m]
+        total_distance = 0
+        is_match = True
+        for j in range(m):
+            dist = levenshtein_distance(window[j], pattern_words[j])
+            if dist > threshold:
+                is_match = False 
+                break
+            total_distance += dist
+        
+        # Kecocokan dianggap valid jika setiap kata lolos threshold individual,
+        # dan rata-rata jarak juga di bawah threshold.
+        if is_match and (total_distance / m) <= threshold:
+            count += 1
+    return count
+
+
+def fuzzy_search(text, pattern, threshold=2):
+    """
+    Fungsi penyalur (dispatcher) untuk fuzzy search.
+    Secara otomatis memilih metode yang tepat untuk kata tunggal atau frasa.
+    """
+    # Jika pattern mengandung spasi, anggap sebagai frasa.
+    if ' ' in pattern.strip():
+        return _find_fuzzy_phrase(text, pattern, threshold)
+    # Jika tidak, anggap sebagai kata tunggal.
+    else:
+        return _find_fuzzy_single_word(text, pattern, threshold)
 
 def extract_details_with_regex(full_cv_text):
     text = re.sub(r' +', ' ', full_cv_text).strip()
